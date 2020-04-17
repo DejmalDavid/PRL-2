@@ -85,8 +85,8 @@ int main(int argc, char *argv[])
 		
 		
 		int helpCounter=1;
-		for(int j=0;j<2;j++)	//TODO pocetPrvku>25
-		{
+		//for(int j=0;j<2;j++)	//TODO pocetPrvku>25
+		//{
 			for(int i=0;i<pocetProcesu;i++)	//TODO pocetPrvku>25
 			{
 			//odeslani ostatnim
@@ -95,24 +95,31 @@ int main(int argc, char *argv[])
 				if(helpCounter<pocetPrvku)
 				{
 					//cout<<i<<";"<<vstup[helpCounter]<<endl;
-					MPI_Send(&vstup[helpCounter++], 1, MPI_INT, i, j, MPI_COMM_WORLD);				
+					MPI_Send(&vstup[helpCounter++], 1, MPI_INT, i, 0, MPI_COMM_WORLD);				
 
 				}
 				else
 				{
 					int help[] = {0};
-					MPI_Send(&help[0], 1, MPI_INT, i, j, MPI_COMM_WORLD);
+					MPI_Send(&help[0], 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+					//cout<<i<<";"<<help[0]<<endl;
+				}
+				if(helpCounter<pocetPrvku)
+				{
+					//cout<<i<<";"<<vstup[helpCounter]<<endl;
+					MPI_Send(&vstup[helpCounter++], 1, MPI_INT, i, 1, MPI_COMM_WORLD);				
+
+				}
+				else
+				{
+					int help[] = {0};
+					MPI_Send(&help[0], 1, MPI_INT, i, 1, MPI_COMM_WORLD);
 					//cout<<i<<";"<<help[0]<<endl;
 				}
 			}
-		}
+		//}
 		vychoziVyska = vstup[0];
-		
-	cout<<"j <"<<log2(pocetProcesu)<<endl;
-	cout<<"i <"<<((pocetProcesu)-1)<<endl;
-	
-
-		
+			
 	}
 	
 		
@@ -126,8 +133,8 @@ int main(int argc, char *argv[])
 	uhelB = atan((vyskaB-vychoziVyska)/(double)pocetPrvku);
 	//cout<<"ID:"<<id<<" hodnota:"<<vyskaA<<";"<<vyskaB<<endl;
 	
-	upsweep=(vyskaA>vyskaB)?vyskaA:vyskaB;
-	//upsweep=vyskaA+vyskaB;
+	//upsweep=(vyskaA>vyskaB)?vyskaA:vyskaB;
+	upsweep=vyskaA+vyskaB;
 	
 	
 	MPI_Barrier( MPI_COMM_WORLD );
@@ -164,11 +171,11 @@ int main(int argc, char *argv[])
 			
 			helpVar=upsweep;
 				MPI_Recv(&upsweep, 1, MPI_INT, i+(int)pow(2.0,j)-1, j, MPI_COMM_WORLD, &stat); 
-				if(helpVar>upsweep)
+				/*if(helpVar>upsweep)
 				{
 					upsweep=helpVar;
-				}
-				//upsweep+=helpVar;
+				}*/
+				upsweep+=helpVar;
 			}
 		MPI_Barrier( MPI_COMM_WORLD );
 		}
@@ -176,10 +183,73 @@ int main(int argc, char *argv[])
 		//MPI_Barrier( MPI_COMM_WORLD );
 	}
 	
-	cout<<"END-ID:"<<id<<" upsweep:"<<upsweep<<endl;
-	/*
-	if(id == 0)
+	//cout<<"END-DOWN:"<<id<<" upsweep:"<<upsweep<<endl;
+	
+	//downsweep
+	
+	if(id==(pocetProcesu-1))
 	{
+		upsweep=0;
+		//cout<<"IDdowsn:"<<id<<" upsweep:"<<upsweep<<endl;
+	}
+	
+	
+
+	for(int d=log2(pocetProcesu)-1;d>=0;d--)
+	{
+		for(int i=0;i<((pocetProcesu)-1);i+=(int)pow(2.0,d+1.0))
+		{
+			//leva
+			//cout<<"t="<<(int)(i+pow(2.0,d)-1)<<endl; //nacteni leveho
+			//cout<<"L("<<(int)(i+pow(2.0,d)-1)<<")="<<(int)(i+pow(2.0,d+1.0)-1)<<endl; //root send levy
+			//cout<<"P("<<(int)(i+pow(2.0,d+1.0)-1)<<")="<<(int)(i+pow(2.0,d)-1)<<"+"<<(int)(i+pow(2.0,d+1.0)-1)<<endl<<endl; //root send pravy
+			
+			//levy send root t
+			//levy recv sweep
+			if(id==(int)(i+pow(2.0,d)-1))
+			{
+				//cout<<"id:"<<id<<" send to:"<<(int)(i+pow(2.0,d+1.0)-1)<<" + recv"<<endl;
+				
+				//buffer,velikost,typ,rank prijemce,tag,komunikacni skupina
+				MPI_Send(&upsweep, 1, MPI_INT,(int)(i+pow(2.0,d+1.0)-1) , i, MPI_COMM_WORLD);
+				//buffer,velikost,typ,rank odesilatele,tag, skupina, stat
+				MPI_Recv(&upsweep, 1, MPI_INT,(int)(i+pow(2.0,d+1.0)-1), i, MPI_COMM_WORLD, &stat); 
+			}
+			
+			//root recv
+			//root send levy sweep
+
+			if(id==(int)(i+pow(2.0,d+1.0)-1))
+			{
+				//cout<<"id:"<<id<<" send to:"<<(int)(i+pow(2.0,d)-1)<<" + recv + update sweep:"<<endl;
+				
+				//buffer,velikost,typ,rank odesilatele,tag, skupina, stat
+				helpVar=upsweep;
+				MPI_Recv(&upsweep, 1, MPI_INT,(int)(i+pow(2.0,d)-1), i, MPI_COMM_WORLD, &stat);
+				upsweep=upsweep+helpVar;
+				
+				//buffer,velikost,typ,rank prijemce,tag,komunikacni skupina
+				MPI_Send(&helpVar, 1, MPI_INT,(int)(i+pow(2.0,d)-1) , i, MPI_COMM_WORLD);
+			}
+			
+			MPI_Barrier( MPI_COMM_WORLD );		
+		}
+		
+	}
+	//cout<<"END-UP:"<<id<<" upsweep:"<<upsweep<<endl;
+	
+	
+	
+	if(vyskaB!=0) // obsahuje validni hodnotu
+	{					//TODO spuvodni vyska
+		vyskaB=upsweep+vyskaA;
+	}
+	vyskaA=upsweep;
+	
+	cout<<"END-ID:"<<id<<" up:"<<upsweep<<" hodnoty:"<<vyskaA<<";"<<vyskaB<<endl;
+	
+	/*
+
 		for(int i=0; i<pocetPrvku; i++) //nacteni hodnot zpet do pole
         {
             MPI_Recv(&uhly[i], 1, MPI_DOUBLE, i, TAG, MPI_COMM_WORLD, &stat);
