@@ -1,8 +1,5 @@
 #!/bin/bash
 
-power2() { echo "x=l($1)/l(2); scale=0; 2^(x/1)" | bc -l; }
-
-
 if [ $# -ne 1 ];then 
     echo "Wrong argument's! Usage: test.sh nadmorske_vysky"
     exit 1
@@ -16,11 +13,16 @@ for i in "${ADDR[@]}"; do
 done 
 
 pocet=$((pocet - 1))
-echo $pocet
+#echo $pocet
+
+if [ $pocet -eq 0 ];then 
+    echo "_"
+    exit 0
+fi
 
 pocet=$(bc -l <<< "x=l($pocet)/l(2); scale=0; 2^(x/1)" )
 
-echo Pocet procesoru $pocet
+#echo Pocet procesoru $pocet
 
 
 
